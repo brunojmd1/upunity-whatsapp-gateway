@@ -319,6 +319,45 @@ export interface BaileysMessageContext {
   backgroundArgb?: number;
   /** Styling of an extended-text (status) message: proto `font` (WhatsApp font index). */
   font?: number;
+  /** Click-to-WhatsApp ad that originated the message — see {@link IncomingMessage.adReferral}. */
+  adReferral?: IncomingMessage['adReferral'];
+}
+
+/**
+ * Narrow view of the ad fields on `contextInfo`. Read through this instead of the proto typings:
+ * `ctwaClid` moved between `contextInfo` and `externalAdReply` across WA proto revisions, so a
+ * direct property access would couple this file to one Baileys release.
+ */
+interface AdContextInfo {
+  ctwaClid?: string | null;
+  externalAdReply?: {
+    title?: string | null;
+    body?: string | null;
+    sourceType?: string | null;
+    sourceId?: string | null;
+    sourceUrl?: string | null;
+    ctwaClid?: string | null;
+  } | null;
+}
+
+/** Extract the originating Click-to-WhatsApp ad, when the message carries one. */
+function extractAdReferral(contextInfo: unknown): IncomingMessage['adReferral'] | undefined {
+  const ci = (contextInfo ?? {}) as AdContextInfo;
+  const ad = ci.externalAdReply;
+  const ctwaClid = ci.ctwaClid ?? ad?.ctwaClid ?? undefined;
+  if (!ad && !ctwaClid) return undefined;
+  const str = (v: string | null | undefined) => (typeof v === 'string' && v !== '' ? v : undefined);
+  const referral = {
+    sourceId: str(ad?.sourceId),
+    sourceUrl: str(ad?.sourceUrl),
+    sourceType: str(ad?.sourceType),
+    title: str(ad?.title),
+    body: str(ad?.body),
+    ctwaClid: str(ctwaClid),
+  };
+  // externalAdReply also rides on plain link previews: without an ad id or a click id it is not an ad.
+  if (!referral.sourceId && !referral.ctwaClid) return undefined;
+  return referral;
 }
 
 /**
@@ -347,6 +386,7 @@ export function extractBaileysContext(content: BaileysContextContent): BaileysMe
     mentionedJids: contextInfo?.mentionedJid ?? undefined,
     backgroundArgb: typeof extText?.backgroundArgb === 'number' ? extText.backgroundArgb : undefined,
     font: typeof extText?.font === 'number' ? extText.font : undefined,
+    adReferral: extractAdReferral(contextInfo),
   };
 
   if (contextInfo?.quotedMessage && contextInfo.stanzaId) {
@@ -424,6 +464,8 @@ export interface BaileysIncomingFields {
   backgroundArgb?: number;
   /** Styling of an extended-text (status) message: proto `font` (WhatsApp font index). */
   font?: number;
+  /** Click-to-WhatsApp ad referral from `contextInfo` — see {@link IncomingMessage.adReferral}. */
+  adReferral?: IncomingMessage['adReferral'];
 }
 
 /**
@@ -513,6 +555,11 @@ export function buildIncomingMessageFromBaileys(
   // Ephemeral/disappearing-messages timer, when the chat has one set.
   if (fields.ephemeralDuration && fields.ephemeralDuration > 0) {
     incoming.ephemeralDuration = fields.ephemeralDuration;
+  }
+
+  // The Meta ad that originated the conversation (Click-to-WhatsApp attribution).
+  if (fields.adReferral) {
+    incoming.adReferral = fields.adReferral;
   }
 
   // @mentioned WIDs, normalized to the neutral convention — parity with the wwjs adapter

@@ -1009,6 +1009,7 @@ export class BaileysEvents {
         product: commerce.product,
         isCatalogShare: isBaileysCatalogShare(normalized),
         ephemeralDuration: context.ephemeralDuration,
+        adReferral: context.adReferral,
         mentionedJids: context.mentionedJids,
         backgroundArgb: context.backgroundArgb,
         font: context.font,

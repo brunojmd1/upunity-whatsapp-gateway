@@ -115,6 +115,25 @@ export interface IncomingMessage {
   /** Set for `call` (call_log) messages: video vs voice, and whether an incoming call went unanswered. */
   call?: { video: boolean; missed: boolean };
   /**
+   * The Meta ad that originated this conversation (Click-to-WhatsApp). Present on the first
+   * message(s) a user sends after tapping an ad; consumers persist it for attribution and for
+   * Conversions API events (`ctwa_clid`). Mirrors the Cloud API's `messages[].referral`.
+   */
+  adReferral?: {
+    /** Meta ad id (`source_id`). */
+    sourceId?: string;
+    /** Ad permalink (`source_url`). */
+    sourceUrl?: string;
+    /** "ad" | "post" — surface the ad was served on. */
+    sourceType?: string;
+    /** Ad headline. */
+    title?: string;
+    /** Ad body text. */
+    body?: string;
+    /** Click id for CAPI business-messaging events. */
+    ctwaClid?: string;
+  };
+  /**
    * Set for `order` messages: a cart the customer placed from the business catalog. The message
    * carries no line items — `orderId` plus the single-order `token` are the correlation handle a
    * caller redeems against WhatsApp's own order lookup, which this project does not expose, so both
